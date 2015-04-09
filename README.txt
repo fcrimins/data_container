@@ -8,6 +8,10 @@ Handles caching, given cache file names from DataStream.
 Holds 2 (or 4 matrices).  (1) data, (2) date knowns, which act as masks on numpy
 'data' arrays.  This means it must know about the current clock time.
 
+The date_known 'matrix' actually doesn't really need to be a matrix, but rather
+an interface to a matrix mask object so that date knowns can be stored as rules/logic
+rather than data, if desired.
+
 Interface:
 
 def insert_item
