@@ -1,9 +1,16 @@
 import numpy as np
-
+import datetime
 
 
 class DateTimeIndexer(object):
-    pass
+
+    def __init__(self, calendar):
+        self._calendar = calendar
+        self._dt0 = datetime.datetime(2015, 4, 13)
+
+    def get_index(self, dt):
+        return self._calendar.biz_days_between(self._dt0, dt)
+
 
 class EntityIndexer(object):
 
@@ -19,10 +26,35 @@ class EntityIndexer(object):
             self._type2indexer[type(entity)] = None
         return idxr[entity]
 
+
 class Clock(object):
-    pass
+
+    def current_dt(self):
+        return None
+
+
+class DTKnownBase(object):
+
+    def is_known(self, item):
+        """Returns True if data for item=(entity, data_dt) is known yet."""
+        raise NotImplementedError
+
+
+class DTKnownConstantLag(DTKnownBase):
+    """Data is known with a constant lag after data date.  Note that if daily dates are
+    used as data dates then the lags may be fractional days (i.e. times).
+    """
+    def __init__(self, lag):
+        self._lag = lag
+
+    def is_known(self, item):
+        entity, dt = item
+        return dt + self._lag < clock.current_dt()
+
 
 class DataContainer(object):
+
+    missing_value = np.nan
 
     def __init__(self, cache_file_root):
         self._dt_known_impl = None  # composition, e.g. data_dt + 1
@@ -33,7 +65,7 @@ class DataContainer(object):
         # should we always use a dense numpy array and only convert to sparse before caching?
         def new_matrix(shape):
             m = np.empty(shape)
-            m.fill(np.nan)
+            m.fill(self.missing_value)
             return m
         self._matrix_type = new_matrix
         self._vstack = np.vstack  # for adding entities
@@ -90,6 +122,8 @@ class DataContainer(object):
         must handle that.
         """
         entity, dt = item
+        if not self._dt_known_impl.is_known(dt):
+            return self.missing_value
         i = 0 if entity is None else self._entity_indexer.get_index(entity)
         j = self._dt_indexer.get_index(dt) + self._dt_idx_offset
         return self._matrix[i, j]
